@@ -1,9 +1,4 @@
-// ═══════════════════════════════════════════════
-//  start.js — Auto Installer + Bot Launcher
-//  Dipanggil oleh "npm start" via package.json
-//  Cek node_modules → install jika belum ada
-//  Lalu langsung launch index.js
-// ═══════════════════════════════════════════════
+
 
 import { execSync, spawn } from 'child_process'
 import { existsSync, readFileSync } from 'fs'
@@ -14,19 +9,17 @@ import { fileURLToPath } from 'url'
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const require = createRequire(import.meta.url)
 
-// ─── Cek apakah node_modules sudah ada dan lengkap ───────────
 function needsInstall() {
   const nmPath = path.join(__dirname, 'node_modules')
   if (!existsSync(nmPath)) return true
 
-  // Baca dependencies dari package.json
   try {
     const pkg = JSON.parse(readFileSync(path.join(__dirname, 'package.json'), 'utf8'))
     const deps = {
       ...pkg.dependencies,
       ...pkg.optionalDependencies,
     }
-    // Cek setiap dependency apakah folder-nya ada
+    
     for (const dep of Object.keys(deps)) {
       const depPath = path.join(nmPath, dep)
       if (!existsSync(depPath)) {
@@ -41,7 +34,6 @@ function needsInstall() {
   return false
 }
 
-// ─── Jalankan npm install ─────────────────────────────────────
 function runInstall() {
   console.log('')
   console.log('╔══════════════════════════════════════════╗')
@@ -65,7 +57,6 @@ function runInstall() {
   }
 }
 
-// ─── Launch index.js dengan spawn (agar signal diteruskan) ───
 function launchBot() {
   const child = spawn(process.execPath, ['index.js'], {
     cwd: __dirname,
@@ -81,12 +72,10 @@ function launchBot() {
     }
   })
 
-  // Teruskan SIGINT dan SIGTERM ke child
   process.on('SIGINT', () => child.kill('SIGINT'))
   process.on('SIGTERM', () => child.kill('SIGTERM'))
 }
 
-// ─── Main ─────────────────────────────────────────────────────
 if (needsInstall()) {
   runInstall()
 }
