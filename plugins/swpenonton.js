@@ -1,21 +1,6 @@
-// ═══════════════════════════════════════════════
-//  plugins/swpenonton.js — Cek Penonton Status WA
-//
-//  Cara pakai:
-//    !swpenonton      → lihat penonton semua status aktif
-//    !swpenonton 1    → detail penonton status ke-1
-//
-//  Status tersimpan di RAM selama 24 jam (sesuai masa aktif status WA).
-//  Penonton terhitung saat mereka buka/lihat statusnya.
-// ═══════════════════════════════════════════════
-
+// plugins/swpenonton.js — Cek Penonton Status WA
 import { getStatusViewerInfo } from '../lib/statusRuntime.js'
-
-function formatTime(ts) {
-  const d = new Date(ts * 1000 || ts)
-  const pad = (n) => String(n).padStart(2, '0')
-  return `${pad(d.getHours())}:${pad(d.getMinutes())} ${pad(d.getDate())}/${pad(d.getMonth()+1)}`
-}
+import { resolveLidToJid, getContactInfo } from '../lib/contactStore.js'
 
 function timeAgo(ts) {
   const diff = Date.now() - ts
@@ -24,11 +9,46 @@ function timeAgo(ts) {
   if (m < 60) return `${m} menit lalu`
   const h = Math.floor(m / 60)
   if (h < 24) return `${h} jam lalu`
-  return `${Math.floor(h/24)} hari lalu`
+  return `${Math.floor(h / 24)} hari lalu`
+}
+
+// Resolve viewer JID/LID → tampilan "Nama • +628xxx"
+function resolveViewer(raw) {
+  // raw bisa: "57260671819853@lid", "628xxx@s.whatsapp.net", atau "57260671819853" (tanpa @)
+  let lid = null
+  let phoneJid = null
+
+  if (raw.endsWith('@lid')) {
+    lid = raw
+    phoneJid = resolveLidToJid(lid)
+  } else if (raw.endsWith('@s.whatsapp.net')) {
+    phoneJid = raw
+  } else {
+    // Tidak ada @ — coba tebak: kalau panjang & bukan nomor Indonesia → kemungkinan LID
+    lid = `${raw}@lid`
+    phoneJid = resolveLidToJid(lid)
+  }
+
+  // Ambil nomor bersih
+  const number = phoneJid
+    ? phoneJid.split('@')[0]
+    : null
+
+  // Ambil nama dari contactStore
+  const info = phoneJid ? getContactInfo(phoneJid) : null
+  const name = info?.name || info?.notify || null
+
+  // Format tampilan
+  if (name && number) return `${name} • +${number}`
+  if (name)           return name
+  if (number)         return `+${number}`
+
+  // Fallback: tampilkan raw tapi bersih (tanpa @lid/@s.whatsapp.net)
+  return raw.replace(/@(lid|s\.whatsapp\.net)$/, '')
 }
 
 const handler = async (ctx) => {
-  const { args, reply, sock } = ctx
+  const { args, reply } = ctx
 
   if (!ctx.isOwner) return reply('❌ Hanya owner yang bisa menggunakan command ini.')
 
@@ -37,11 +57,11 @@ const handler = async (ctx) => {
   if (statusList.length === 0) {
     return reply(
       '📭 *Belum ada status yang diupload*\n\n' +
-      '_Upload status dulu dengan !swfoto / !swvideo / !swaudio / !swvn_'
+      '_Upload status dulu dengan swfoto / swvideo / swaudio / swvn_'
     )
   }
 
-  // !swpenonton <nomor> → detail satu status
+  // swpenonton <angka> → detail satu status
   const idx = parseInt(args[0]) - 1
   if (!isNaN(idx) && idx >= 0 && idx < statusList.length) {
     const s = statusList[idx]
@@ -56,19 +76,15 @@ const handler = async (ctx) => {
     if (s.viewerCount === 0) {
       lines.push('_Belum ada yang lihat status ini_')
     } else {
-      // Resolve nama dari sock.contacts jika ada
-      const contacts = sock.contacts || {}
-      s.viewers.forEach((jid) => {
-        const info = contacts[jid]
-        const name = info?.name || info?.notify || jid.split('@')[0]
-        lines.push(`• ${name}`)
+      s.viewers.forEach((raw) => {
+        lines.push(`• ${resolveViewer(raw)}`)
       })
     }
 
     return reply(lines.join('\n'))
   }
 
-  // !swpenonton → ringkasan semua status
+  // swpenonton → ringkasan semua status
   const lines = [`👁️ *Penonton Status WA* (${statusList.length} status aktif)\n`]
 
   statusList.forEach((s, i) => {
@@ -78,14 +94,13 @@ const handler = async (ctx) => {
     )
   })
 
-  lines.push(`_Ketik !swpenonton <nomor> untuk detail_\n_Contoh: !swpenonton 1_`)
+  lines.push(`_Ketik swpenonton <angka> untuk detail_\n_Contoh: swpenonton 1_`)
 
   return reply(lines.join('\n'))
 }
 
-handler.pluginName = 'swpenonton'
+handler.pluginName  = 'swpenonton'
 handler.description = 'Cek jumlah penonton status WhatsApp'
-handler.command = ['swpenonton', 'swviewer', 'penontonsw']
-handler.category = ['owner']
-
+handler.command     = ['swpenonton', 'swviewer', 'penontonsw']
+handler.category    = ['owner']
 export default handler
