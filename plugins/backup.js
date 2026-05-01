@@ -1,7 +1,10 @@
-// plugins/backup.js — Backup semua file bot ke GitHub
+// plugins/backup.js — Backup bot ke GitHub + kirim file config ke chat
 import config from '../config.js'
 import { readFile, readdir, stat } from 'fs/promises'
 import { join, relative } from 'path'
+import { createWriteStream } from 'fs'
+import { tmpdir } from 'os'
+import path from 'path'
 
 const GITHUB_TOKEN = config.githubToken || ''
 const GITHUB_USER  = config.githubUser  || ''
@@ -12,50 +15,35 @@ const SKIP = [
   '.git', 'package-lock.json',
 ]
 
-// ─── Generate config.js template (nilai sensitif dikosongkan) ────────────
+// ─── Template config aman (nilai sensitif dikosongkan) ───────────────────
 function generateSafeConfig() {
-  return `// ═══════════════════════════════════════════════
-//  config.js — Bot Configuration
-//  Edit sesuai kebutuhan sebelum deploy
-// ═══════════════════════════════════════════════
+  return `// config.js — Bot Configuration
+// Edit sesuai kebutuhan sebelum deploy
 
 const config = {
-  // ─── Prefix Command ───────────────────────────
   usePrefix: ${config.usePrefix},
   prefix: '${config.prefix}',
 
-  // ─── Owner Numbers (format: 628xxxxx tanpa +) ─
   ownerNumber: [''],
   ownerLid: [''],
 
-  // ─── Bot Info ─────────────────────────────────
   botName: '${config.botName}',
   botVersion: '${config.botVersion}',
   botDeveloper: '',
 
-  // ─── Channel ID untuk playch ──────────────────
   channelId: '',
 
-  // ─── Sticker Watermark ────────────────────────
   stickerPack: '${config.stickerPack}',
   stickerAuthor: '',
 
-  // ─── GitHub Backup ────────────────────────────
   githubToken: '',
   githubUser:  '',
   githubRepo:  '',
 
-  // ─── Session Folder ───────────────────────────
   sessionDir: '${config.sessionDir}',
-
-  // ─── Pairing Timeout (ms) ─────────────────────
   pairingTimeout: ${config.pairingTimeout},
-
-  // ─── Reconnect Settings ───────────────────────
   maxReconnectAttempts: ${config.maxReconnectAttempts},
   reconnectDelay: ${config.reconnectDelay},
-
-  // ─── Logger Level ─────────────────────────────
   logLevel: '${config.logLevel}',
 }
 
@@ -82,8 +70,8 @@ async function getAllFiles(dir, rootDir) {
   return result
 }
 
-async function githubRequest(path, method, body) {
-  const res = await fetch(`https://api.github.com${path}`, {
+async function githubRequest(urlPath, method, body) {
+  const res = await fetch(`https://api.github.com${urlPath}`, {
     method,
     headers: {
       'Authorization': `token ${GITHUB_TOKEN}`,
@@ -94,88 +82,130 @@ async function githubRequest(path, method, body) {
     body: body ? JSON.stringify(body) : undefined,
     signal: AbortSignal.timeout(30000),
   })
-  const json = await res.json().catch(() => ({}))
-  return { ok: res.ok, status: res.status, data: json }
+  return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) }
+}
+
+// ─── Buat ZIP sederhana dari file-file penting ───────────────────────────
+// Karena tidak ada native zip di Node ESM tanpa package tambahan,
+// kita kirim file satu per satu sebagai document ke chat
+async function sendFilesToChat(sock, jid, msg, files, rootDir) {
+  let sent = 0
+  // Hanya kirim file kecil & penting (plugins, lib, config template)
+  const important = files.filter(f =>
+    f.relPath.startsWith('plugins/') ||
+    f.relPath.startsWith('lib/') ||
+    f.relPath === 'config.js' ||
+    f.relPath === 'index.js' ||
+    f.relPath === 'start.js' ||
+    f.relPath === 'package.json'
+  )
+
+  await sock.sendMessage(jid, {
+    text: `📁 *Backup File* — ${important.length} file\n_Mengirim file satu per satu..._`
+  }, { quoted: msg })
+
+  for (const { fullPath, relPath } of important) {
+    try {
+      let content
+      if (relPath === 'config.js') {
+        content = Buffer.from(generateSafeConfig())
+      } else {
+        content = await readFile(fullPath)
+      }
+
+      await sock.sendMessage(jid, {
+        document: content,
+        fileName: relPath.replace(/\//g, '_'),
+        mimetype: 'text/plain',
+        caption:  `📄 ${relPath}`,
+      }, { quoted: msg })
+
+      sent++
+      await new Promise(r => setTimeout(r, 300))
+    } catch { /* skip file gagal */ }
+  }
+  return sent
 }
 
 const handler = async (ctx) => {
-  const { reply, react, isOwner } = ctx
+  const { sock, msg, jid, reply, react, isOwner, args } = ctx
   if (!isOwner) return reply('⛔ Hanya owner yang bisa backup!')
 
+  const subCmd = (args[0] || '').toLowerCase()
+
+  // ─── backup file → kirim ke chat sebagai dokumen ─────────────────────
+  if (subCmd === 'file' || subCmd === 'lokal') {
+    await react('📦')
+    await reply('⏳ Mengumpulkan file...')
+    const rootDir = process.cwd()
+    const files   = await getAllFiles(rootDir, rootDir)
+    const sent    = await sendFilesToChat(sock, jid, msg, files, rootDir)
+    await react('✅')
+    await reply(
+      `✅ *Backup file selesai!*\n\n` +
+      `📁 Terkirim: ${sent} file\n\n` +
+      `_config.js dikirim tanpa data sensitif_`
+    )
+    return
+  }
+
+  // ─── backup github (default) ──────────────────────────────────────────
   if (!GITHUB_TOKEN || !GITHUB_USER || !GITHUB_REPO) {
-    return reply('❌ Set dulu *githubToken*, *githubUser*, *githubRepo* di config.js')
+    return reply(
+      '❌ GitHub belum dikonfigurasi di config.js\n\n' +
+      'Untuk backup ke chat: *backup file*\n' +
+      'Untuk backup GitHub: isi githubToken, githubUser, githubRepo'
+    )
   }
 
   await react('📦')
-  await reply('⏳ Mulai backup ke GitHub...\n_Ini mungkin butuh beberapa menit_')
+  await reply('⏳ Backup ke GitHub...\n_Ini mungkin butuh beberapa menit_')
 
   try {
     // Auto-create repo jika belum ada
     const checkRepo = await githubRequest(`/repos/${GITHUB_USER}/${GITHUB_REPO}`, 'GET')
     if (!checkRepo.ok) {
-      const createRepo = await githubRequest('/user/repos', 'POST', {
-        name: GITHUB_REPO,
-        private: true,
+      const cr = await githubRequest('/user/repos', 'POST', {
+        name: GITHUB_REPO, private: true,
         description: `${config.botName} WhatsApp Bot Backup`,
         auto_init: true,
       })
-      if (!createRepo.ok) throw new Error(`Gagal buat repo: ${createRepo.data?.message}`)
-      await reply(`✅ Repo *${GITHUB_REPO}* berhasil dibuat! Mulai upload...`)
+      if (!cr.ok) throw new Error(`Gagal buat repo: ${cr.data?.message}`)
       await new Promise(r => setTimeout(r, 2000))
     }
 
     const rootDir = process.cwd()
     const files   = await getAllFiles(rootDir, rootDir)
-
     let success = 0, failed = 0
 
     for (const { fullPath, relPath } of files) {
       try {
-        let contentBuf
+        const content = relPath === 'config.js'
+          ? Buffer.from(generateSafeConfig())
+          : await readFile(fullPath)
 
-        // config.js → pakai template aman (nilai sensitif dikosongkan)
-        if (relPath === 'config.js') {
-          contentBuf = Buffer.from(generateSafeConfig())
-        } else {
-          contentBuf = await readFile(fullPath)
-        }
-
-        const b64 = contentBuf.toString('base64')
-
-        // Cek SHA file yang sudah ada di repo
-        const check = await githubRequest(
-          `/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${relPath}`, 'GET'
-        )
-        const sha = check.ok ? check.data?.sha : undefined
+        const b64   = content.toString('base64')
+        const check = await githubRequest(`/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${relPath}`, 'GET')
+        const sha   = check.ok ? check.data?.sha : undefined
 
         const up = await githubRequest(
-          `/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${relPath}`,
-          'PUT',
-          {
-            message: `backup: ${relPath}`,
-            content: b64,
-            ...(sha ? { sha } : {}),
-          }
+          `/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${relPath}`, 'PUT',
+          { message: `backup: ${relPath}`, content: b64, ...(sha ? { sha } : {}) }
         )
-
         if (up.ok) success++
-        else { failed++; console.log(`[BACKUP] Failed ${relPath}: ${up.data?.message}`) }
-
+        else failed++
         await new Promise(r => setTimeout(r, 100))
-      } catch (e) {
-        failed++
-        console.log(`[BACKUP] Error ${relPath}:`, e.message)
-      }
+      } catch { failed++ }
     }
 
     await react('✅')
     await reply(
-      `✅ *Backup selesai!*\n\n` +
-      `📁 Total file: ${files.length}\n` +
+      `✅ *Backup GitHub selesai!*\n\n` +
+      `📁 Total: ${files.length} file\n` +
       `✅ Berhasil: ${success}\n` +
       `❌ Gagal: ${failed}\n\n` +
       `🔗 https://github.com/${GITHUB_USER}/${GITHUB_REPO}\n\n` +
-      `_ℹ️ config.js di-backup tanpa data sensitif (token, nomor, dll)_`
+      `_config.js di-backup tanpa data sensitif_`
     )
   } catch (e) {
     await react('❌')
@@ -184,7 +214,7 @@ const handler = async (ctx) => {
 }
 
 handler.pluginName  = 'backup'
-handler.description = 'Backup semua file bot ke GitHub'
+handler.description = 'Backup bot ke GitHub atau kirim file ke chat'
 handler.command     = ['backup', 'bkp']
 handler.category    = ['owner']
 export default handler
