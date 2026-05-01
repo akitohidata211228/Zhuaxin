@@ -1,8 +1,8 @@
 // plugins/playch.js — YouTube Search & Kirim ke Channel (owner only)
-// Search: api.cuki.biz.id/api/search/youtube
-// Download: my-api-rzmb.onrender.com/api/download/yt-dl
+// Audio dikonversi ke ogg/opus agar support di channel WA
 
 import config from '../config.js'
+import { toOggOpus } from '../lib/audioHelper.js'
 
 global.__playchSession = global.__playchSession || new Map()
 const playchSession = global.__playchSession
@@ -24,12 +24,11 @@ async function searchYT(query) {
     duration: v.duration?.timestamp || v.timestamp || '?',
     thumb:    v.thumbnail || v.image || null,
     author:   v.author?.name || 'Unknown',
-    views:    v.views ? Number(v.views).toLocaleString('id') : '?',
   }))
 }
 
-// ─── Download audio ───────────────────────────────────────────────────────
-async function downloadAudio(ytUrl) {
+// ─── Download audio (mp3) ─────────────────────────────────────────────────
+async function downloadMp3(ytUrl) {
   const r = await fetch(
     `https://my-api-rzmb.onrender.com/api/download/yt-dl?url=${encodeURIComponent(ytUrl)}&type=mp3&quality=320K`,
     { signal: AbortSignal.timeout(90000) }
@@ -43,6 +42,16 @@ async function downloadAudio(ytUrl) {
     duration: d.duration || '?',
     thumb:    d.thumbnail || null,
   }
+}
+
+// ─── Fetch buffer dari URL ────────────────────────────────────────────────
+async function fetchBuffer(url) {
+  const r = await fetch(url, {
+    signal: AbortSignal.timeout(120000),
+    headers: { 'User-Agent': 'Mozilla/5.0' },
+  })
+  if (!r.ok) throw new Error(`Gagal ambil file: ${r.status}`)
+  return Buffer.from(await r.arrayBuffer())
 }
 
 // ─── Handler ──────────────────────────────────────────────────────────────
@@ -67,31 +76,50 @@ const handler = async (ctx) => {
     const picked = session[index]
     await react('📥')
 
+    // 1. Download mp3
     let dl
     try {
-      dl = await downloadAudio(picked.url)
+      dl = await downloadMp3(picked.url)
     } catch (e) {
       await react('❌')
       return reply(`❌ *Download gagal*\n\n> ${e.message}`)
     }
 
+    // 2. Fetch mp3 buffer
+    await react('⚙️')
+    let mp3Buf
     try {
-      // Kirim caption dulu ke channel (teks)
-      await sock.sendMessage(config.channelId, {
-        text:
-          `🎵 *${dl.title}*\n` +
-          `👤 ${picked.author}  •  ⏱️ ${dl.duration}\n` +
-          `🎧 320kbps`,
-      })
+      mp3Buf = await fetchBuffer(dl.url)
+    } catch (e) {
+      await react('❌')
+      return reply(`❌ *Gagal ambil file audio*\n\n> ${e.message}`)
+    }
 
-      // Kirim audio plain (tanpa externalAdReply — tidak support di channel)
-      await sock.sendMessage(config.channelId, {
-        audio: { url: dl.url },
-        mimetype: 'audio/mpeg',
-        fileName: `${dl.title}.mp3`,
-        ptt: false,
-      })
+    // 3. Konversi mp3 → ogg/opus via ffmpeg
+    let oggBuf
+    try {
+      oggBuf = await toOggOpus(mp3Buf)
+    } catch (e) {
+      await react('❌')
+      return reply(`❌ *Konversi audio gagal*\n\n> ${e.message}\n_Pastikan ffmpeg terinstall di server_`)
+    }
 
+    // 4. Kirim teks info ke channel dulu
+    const caption =
+      `🎵 *${dl.title}*\n` +
+      `👤 ${picked.author}  •  ⏱️ ${dl.duration}`
+
+    try {
+      await sock.sendMessage(config.channelId, { text: caption })
+    } catch { /* skip kalau teks gagal, lanjut audio */ }
+
+    // 5. Kirim audio ogg/opus ke channel (PTT agar support di semua WA)
+    try {
+      await sock.sendMessage(config.channelId, {
+        audio: oggBuf,
+        mimetype: 'audio/ogg; codecs=opus',
+        ptt: true,
+      })
       await react('✅')
       await reply(`✅ Berhasil kirim *${dl.title}* ke channel!`)
     } catch (e) {
@@ -123,7 +151,6 @@ const handler = async (ctx) => {
     return reply(`❌ *Pencarian gagal*\n\n> ${e.message}`)
   }
 
-  // Simpan session 2 menit
   playchSession.set(sender, results)
   setTimeout(() => playchSession.delete(sender), 2 * 60 * 1000)
 
@@ -146,7 +173,7 @@ const handler = async (ctx) => {
       }, { quoted: msg })
       await react('✅')
       return
-    } catch { /* fallback teks */ }
+    } catch { /* fallback */ }
   }
 
   await reply(text)
