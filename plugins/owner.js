@@ -2,6 +2,7 @@
 //  plugins/owner.js — Owner-Only Commands
 // ═══════════════════════════════════════════════
 import config from '../config.js'
+import { restartBot } from '../lib/connection.js'
 
 const handler = async (ctx) => {
   const { sock, jid, msg, command, args, text, reply, react, isOwner } = ctx
@@ -45,6 +46,14 @@ const handler = async (ctx) => {
 
     await react('✅')
     await reply(`✅ Broadcast selesai! Terkirim ke ${sent}/${groupJids.length} grup.`)
+    return
+  }
+
+  // ─── restart ─────────────────────────────────
+  if (command === 'restart') {
+    await react('🔄')
+    await reply('🔄 *Bot sedang restart...*\n\n_Tunggu beberapa detik_')
+    await restartBot()
     return
   }
 
@@ -105,6 +114,6 @@ const handler = async (ctx) => {
 
 handler.pluginName  = 'owner'
 handler.description = 'Command khusus owner bot'
-handler.command     = ['broadcast', 'bc', 'shutdown', 'matiin', 'runtime', 'uptime', 'join', 'leave', 'keluar']
+handler.command     = ['broadcast', 'bc', 'shutdown', 'matiin', 'runtime', 'uptime', 'join', 'leave', 'keluar', 'restart']
 handler.category    = ['owner']
 export default handler
