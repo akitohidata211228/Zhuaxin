@@ -1,4 +1,4 @@
-// plugins/menu.js — Menu dengan preview thumbnail (externalAdReply)
+
 import { getPluginList } from '../lib/loader.js'
 import config from '../config.js'
 
@@ -68,14 +68,12 @@ const handler = async (ctx) => {
     txt += `${emoji} *${cat.toUpperCase()}*\n`
     txt += `${'─'.repeat(22)}\n`
     for (const item of items) {
-      // Kalau plugin punya commandDesc (map command → deskripsi), render tiap command
       if (item.commandDesc && Object.keys(item.commandDesc).length > 0) {
         for (const [cmd, desc] of Object.entries(item.commandDesc)) {
           txt += `  ❯ \`${config.prefix}${cmd}\`\n`
           txt += `    ╰ _${desc}_\n`
         }
       } else {
-        // Render semua alias dengan deskripsi yang sama
         const cmds = item.commands?.length ? item.commands : [item.name]
         for (const cmd of cmds) {
           txt += `  ❯ \`${config.prefix}${cmd}\`\n`
@@ -88,7 +86,6 @@ const handler = async (ctx) => {
 
   txt += `_Ketik command untuk mulai_ ✨`
 
-  // ─── Kirim dengan externalAdReply (preview thumbnail) ───────
   const thumbUrl = 'https://files.catbox.moe/czqg57.jpg'
 
   try {
