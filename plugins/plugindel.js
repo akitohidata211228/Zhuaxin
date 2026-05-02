@@ -49,7 +49,7 @@ const handler = async (ctx) => {
     await fs.unlink(filePath)
     await reply(
       `🗑️ Plugin *${fileName}* berhasil dihapus!\n\n` +
-      `⚠️ *Restart bot* agar perubahan aktif.`
+      `⚡ Plugin langsung nonaktif otomatis dalam ~1 detik.`
     )
   } catch (err) {
     await reply(`❌ Gagal menghapus plugin: ${err.message}`)
