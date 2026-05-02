@@ -25,14 +25,12 @@ function generateEmptyData(relPath) {
   return JSON.stringify({}, null, 2)
 }
 
-// ─── Template config aman (nilai sensitif dikosongkan) — untuk GitHub ────
 function generateSafeConfig() {
-  return `// config.js — Bot Configuration
-// Edit sesuai kebutuhan sebelum deploy
+  return `
 
 const config = {
   usePrefix: ${config.usePrefix},
-  prefix: '${config.prefix}',
+  prefix: '${config.prefix}', 
 
   ownerNumber: [''],
   ownerLid: [''],
@@ -95,13 +93,9 @@ async function githubRequest(urlPath, method, body) {
   return { ok: res.ok, status: res.status, data: await res.json().catch(() => ({})) }
 }
 
-// ─── Buat ZIP sederhana dari file-file penting ───────────────────────────
-// Karena tidak ada native zip di Node ESM tanpa package tambahan,
-// kita kirim file satu per satu sebagai document ke chat
-// ─── Kirim file ke chat sebagai dokumen (untuk owner — config FULL) ───────
 async function sendFilesToChat(sock, jid, msg, files, rootDir) {
   let sent = 0
-  // Kirim semua file penting (plugins, lib, config, index, data)
+  
   const important = files.filter(f =>
     f.relPath.startsWith('plugins/') ||
     f.relPath.startsWith('lib/') ||
@@ -120,10 +114,10 @@ async function sendFilesToChat(sock, jid, msg, files, rootDir) {
     try {
       let content
       if (relPath.startsWith('data/') && relPath.endsWith('.json')) {
-        // Data JSON → kosongkan isinya
+      
         content = Buffer.from(generateEmptyData(relPath))
       } else {
-        // Config.js dan semua file lain → kirim full (TIDAK dikosongkan)
+        
         content = await readFile(fullPath)
       }
 
@@ -147,7 +141,6 @@ const handler = async (ctx) => {
 
   const subCmd = (args[0] || '').toLowerCase()
 
-  // ─── backup file → kirim ke chat sebagai dokumen ─────────────────────
   if (subCmd === 'file' || subCmd === 'lokal') {
     await react('📦')
     await reply('⏳ Mengumpulkan file...')
