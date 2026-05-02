@@ -1,20 +1,12 @@
-// ═══════════════════════════════════════════════
-//  plugins/install.js — Install npm Package
-//  Usage: !install namaPackage
-//  Contoh: !install axios
-//          !install sharp@0.33.4
-//          !install -D typescript
-// ═══════════════════════════════════════════════
+
 
 import { execFile } from 'child_process'
 import { promisify } from 'util'
 
 const execFileAsync = promisify(execFile)
 
-// Nama package yang diblokir (berbahaya / tidak relevan)
 const BLACKLIST = ['rm', 'rimraf', 'del-cli', 'shx', 'shelljs']
 
-// Validasi nama package npm (hanya huruf, angka, @, /, -, _, titik)
 const SAFE_PKG_RE = /^(@[a-z0-9-~][a-z0-9-._~]*\/)?[a-z0-9-~][a-z0-9-._~]*(@[\w.^~*-]+)?$/i
 
 const handler = async (ctx) => {
@@ -22,7 +14,6 @@ const handler = async (ctx) => {
 
   if (!isOwner) return reply('❌ Hanya owner yang bisa menggunakan command ini.')
 
-  // Gabung semua args (support flag seperti -D)
   const input = (args.join(' ') || text).trim()
 
   if (!input) {
@@ -39,7 +30,6 @@ const handler = async (ctx) => {
     )
   }
 
-  // Pisahkan flag (-D, --save-dev, dll) dari nama package
   const parts = input.split(/\s+/)
   const flags = parts.filter(p => p.startsWith('-'))
   const packages = parts.filter(p => !p.startsWith('-'))
