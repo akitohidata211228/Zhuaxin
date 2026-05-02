@@ -114,6 +114,14 @@ const handler = async (ctx) => {
 
 handler.pluginName  = 'owner'
 handler.description = 'Command khusus owner bot'
-handler.command     =['broadcast', 'bc', 'shutdown', 'matiin', 'runtime', 'uptime', 'join', 'leave', 'keluar', 'restart']
+handler.command     = ['broadcast', 'bc', 'shutdown', 'matiin', 'runtime', 'uptime', 'join', 'leave', 'keluar', 'restart']
+handler.commandDesc = {
+  'broadcast' : 'Kirim pesan ke semua grup',
+  'restart'   : 'Restart bot',
+  'shutdown'  : 'Matikan bot',
+  'runtime'   : 'Cek uptime bot',
+  'join'      : 'Gabung grup via link',
+  'leave'     : 'Bot keluar dari grup ini',
+}
 handler.category    = ['owner']
 export default handler
