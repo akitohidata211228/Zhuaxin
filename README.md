@@ -18,16 +18,8 @@
 
 ## 📖 Tentang Bot
 
-**Zhuaxin MD** adalah bot WhatsApp yang dibangun di atas library **@itsliaaa/baileys** — fork aktif dari Baileys yang mendukung koneksi WA Web terbaru. Bot ini dirancang dengan arsitektur plugin modular, hot-reload otomatis, dan siap deploy di **Pterodactyl Panel**.
+**Zhuaxin MD** adalah bot WhatsApp yang dibangun di atas library **@itsliaaa/baileys** fork aktif dari Baileys yang mendukung koneksi WA Web terbaru. Bot ini dirancang dengan arsitektur plugin modular, dan siap deploy di **Pterodactyl Panel**.
 
-Fitur utama:
-- ⚡ **Hot-reload** — tambah/hapus/edit plugin tanpa restart bot, termasuk dari Pterodactyl File Manager & SFTP
-- 🔌 **Sistem plugin** — setiap fitur adalah file JS terpisah di `plugins/`
-- 🔐 **Whitelist** — kontrol siapa yang boleh pakai bot
-- 🛡️ **Antilink** — hapus link grup WhatsApp otomatis
-- 📡 **Channel WA** — kirim konten langsung ke channel WhatsApp
-
----
 
 ## 📁 Struktur Folder
 
