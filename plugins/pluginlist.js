@@ -1,15 +1,9 @@
-// ═══════════════════════════════════════════════
-//  plugins/pluginlist.js — List Semua Plugin
-//  Usage: !pluginlist
-//  Tampilkan semua file .js di folder plugins/
-// ═══════════════════════════════════════════════
-
 import { promises as fs } from 'fs'
 import path from 'path'
 import { pathToFileURL } from 'url'
 
 const handler = async (ctx) => {
-  const { reply, isOwner } = ctx
+  const { reply, isOwner, prefix } = ctx
 
   if (!isOwner) return reply('❌ Hanya owner yang bisa menggunakan command ini.')
 
@@ -28,7 +22,6 @@ const handler = async (ctx) => {
     return reply('📭 Belum ada plugin yang terpasang.')
   }
 
-  // Baca metadata setiap plugin
   const pluginData = []
   for (const file of jsFiles) {
     const filePath = path.join(pluginsDir, file)
@@ -53,7 +46,6 @@ const handler = async (ctx) => {
     pluginData.push({ file, commands, description, category })
   }
 
-  // Group by category
   const grouped = {}
   for (const p of pluginData) {
     const cat = p.category
@@ -61,7 +53,6 @@ const handler = async (ctx) => {
     grouped[cat].push(p)
   }
 
-  // Bangun teks output
   let out = `📦 *DAFTAR PLUGIN*\n`
   out += `Total: ${jsFiles.length} plugin\n`
   out += `${'─'.repeat(30)}\n\n`
@@ -75,7 +66,7 @@ const handler = async (ctx) => {
     for (const p of grouped[cat]) {
       out += `📄 *${p.file}*\n`
       if (p.commands.length > 0) {
-        out += `   └ Cmd: ${p.commands.map(c => `!${c}`).join(', ')}\n`
+        out += `   └ Cmd: ${p.commands.map(c => `${prefix}${c}`).join(', ')}\n`
       }
       if (p.description) {
         out += `   └ ${p.description}\n`
@@ -85,15 +76,15 @@ const handler = async (ctx) => {
   }
 
   out += `${'─'.repeat(30)}\n`
-  out += `💡 _!pluginget <nama> — lihat kode_\n`
-  out += `💡 _!plugindel <nama> — hapus plugin_`
+  out += `💡 _${prefix}pluginget <nama> — lihat kode_\n`
+  out += `💡 _${prefix}plugindel <nama> — hapus plugin_`
 
   await reply(out)
 }
 
-handler.pluginName = 'pluginlist'
+handler.pluginName  = 'pluginlist'
 handler.description = 'Tampilkan semua plugin yang terpasang'
-handler.command = ['pluginlist', 'listplugin', 'plugins']
-handler.category = ['owner']
+handler.command     = ['pluginlist', 'listplugin', 'plugins']
+handler.category    = ['owner']
 
 export default handler
