@@ -15,7 +15,17 @@ const SKIP = [
   '.git', 'package-lock.json',
 ]
 
-// ─── Template config aman (nilai sensitif dikosongkan) ───────────────────
+// ─── Template data JSON kosong (untuk backup ke GitHub/publik) ───────────
+function generateEmptyData(relPath) {
+  // whitelist.json → kosongkan numbers, mode tetap
+  if (relPath === 'data/whitelist.json') {
+    return JSON.stringify({ mode: 'off', numbers: [] }, null, 2)
+  }
+  // antilink, antispam, dll → array/object kosong
+  return JSON.stringify({}, null, 2)
+}
+
+// ─── Template config aman (nilai sensitif dikosongkan) — untuk GitHub ────
 function generateSafeConfig() {
   return `// config.js — Bot Configuration
 // Edit sesuai kebutuhan sebelum deploy
@@ -88,12 +98,14 @@ async function githubRequest(urlPath, method, body) {
 // ─── Buat ZIP sederhana dari file-file penting ───────────────────────────
 // Karena tidak ada native zip di Node ESM tanpa package tambahan,
 // kita kirim file satu per satu sebagai document ke chat
+// ─── Kirim file ke chat sebagai dokumen (untuk owner — config FULL) ───────
 async function sendFilesToChat(sock, jid, msg, files, rootDir) {
   let sent = 0
-  // Hanya kirim file kecil & penting (plugins, lib, config template)
+  // Kirim semua file penting (plugins, lib, config, index, data)
   const important = files.filter(f =>
     f.relPath.startsWith('plugins/') ||
     f.relPath.startsWith('lib/') ||
+    f.relPath.startsWith('data/') ||
     f.relPath === 'config.js' ||
     f.relPath === 'index.js' ||
     f.relPath === 'start.js' ||
@@ -101,15 +113,17 @@ async function sendFilesToChat(sock, jid, msg, files, rootDir) {
   )
 
   await sock.sendMessage(jid, {
-    text: `📁 *Backup File* — ${important.length} file\n_Mengirim file satu per satu..._`
+    text: `📁 *Backup File (Owner)* — ${important.length} file\n_Mengirim file satu per satu..._\n\n⚠️ _config.js dikirim LENGKAP — jaga kerahasiaannya!_\n📋 _data/*.json dikosongkan (whitelist, antilink, dll)_`
   }, { quoted: msg })
 
   for (const { fullPath, relPath } of important) {
     try {
       let content
-      if (relPath === 'config.js') {
-        content = Buffer.from(generateSafeConfig())
+      if (relPath.startsWith('data/') && relPath.endsWith('.json')) {
+        // Data JSON → kosongkan isinya
+        content = Buffer.from(generateEmptyData(relPath))
       } else {
+        // Config.js dan semua file lain → kirim full (TIDAK dikosongkan)
         content = await readFile(fullPath)
       }
 
@@ -144,7 +158,8 @@ const handler = async (ctx) => {
     await reply(
       `✅ *Backup file selesai!*\n\n` +
       `📁 Terkirim: ${sent} file\n\n` +
-      `_config.js dikirim tanpa data sensitif_`
+      `✅ config.js dikirim *LENGKAP* (dengan token, owner, dll)\n` +
+      `📋 data/*.json dikosongkan (whitelist, antilink, dll)`
     )
     return
   }
@@ -182,7 +197,9 @@ const handler = async (ctx) => {
       try {
         const content = relPath === 'config.js'
           ? Buffer.from(generateSafeConfig())
-          : await readFile(fullPath)
+          : relPath.startsWith('data/') && relPath.endsWith('.json')
+            ? Buffer.from(generateEmptyData(relPath))
+            : await readFile(fullPath)
 
         const b64   = content.toString('base64')
         const check = await githubRequest(`/repos/${GITHUB_USER}/${GITHUB_REPO}/contents/${relPath}`, 'GET')
@@ -205,7 +222,7 @@ const handler = async (ctx) => {
       `✅ Berhasil: ${success}\n` +
       `❌ Gagal: ${failed}\n\n` +
       `🔗 https://github.com/${GITHUB_USER}/${GITHUB_REPO}\n\n` +
-      `_config.js di-backup tanpa data sensitif_`
+      `_config.js di-backup tanpa data sensitif — data/*.json dikosongkan_`
     )
   } catch (e) {
     await react('❌')
