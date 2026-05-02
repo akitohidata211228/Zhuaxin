@@ -11,10 +11,8 @@ function timeAgo(ts) {
   if (h < 24) return `${h} jam lalu`
   return `${Math.floor(h / 24)} hari lalu`
 }
-
-// Resolve viewer JID/LID → tampilan "Nama • +628xxx"
 function resolveViewer(raw) {
-  // raw bisa: "57260671819853@lid", "628xxx@s.whatsapp.net", atau "57260671819853" (tanpa @)
+  
   let lid = null
   let phoneJid = null
 
@@ -24,7 +22,7 @@ function resolveViewer(raw) {
   } else if (raw.endsWith('@s.whatsapp.net')) {
     phoneJid = raw
   } else {
-    // Tidak ada @ — coba tebak: kalau panjang & bukan nomor Indonesia → kemungkinan LID
+    
     lid = `${raw}@lid`
     phoneJid = resolveLidToJid(lid)
   }
