@@ -1,20 +1,4 @@
-// ═══════════════════════════════════════════════
-//  plugins/upsw-privacy.js — Kelola Privacy Status
-//
-//  Meniru sistem privasi WhatsApp APK:
-//    !swprivacy all      → Semua Kontak (default)
-//    !swprivacy exclude  → Semua Kecuali...
-//    !swprivacy only     → Hanya Bagikan Dengan...
-//    !swprivacy status   → Lihat status sekarang
-//    !swprivacy add <nomor>    → Tambah ke exclude/only list
-//    !swprivacy del <nomor>    → Hapus dari list
-//    !swprivacy list     → Lihat isi list
-//    !swprivacy clear    → Kosongkan list
-//    !swprivacy contacts → Lihat jumlah kontak runtime
-//
-//  TIDAK ada file dump kontak — hanya exclude/only list
-//  yang disimpan (file kecil berisi nomor saja)
-// ═══════════════════════════════════════════════
+
 
 import {
   getPrivacyMode,
