@@ -42,8 +42,8 @@ const handler = async (ctx) => {
   }
 
   const catOrder = Object.keys(byCategory).sort((a, b) => {
-    if (a === 'owner') return 1
-    if (b === 'owner') return -1
+    if (a === 'owner') return -1
+    if (b === 'owner') return 1
     return a.localeCompare(b)
   })
 
@@ -68,9 +68,20 @@ const handler = async (ctx) => {
     txt += `${emoji} *${cat.toUpperCase()}*\n`
     txt += `${'─'.repeat(22)}\n`
     for (const item of items) {
-      const mainCmd = item.commands?.[0] || item.name
-      txt += `  ❯ \`${config.prefix}${mainCmd}\`\n`
-      txt += `    ╰ _${item.description}_\n`
+      // Kalau plugin punya commandDesc (map command → deskripsi), render tiap command
+      if (item.commandDesc && Object.keys(item.commandDesc).length > 0) {
+        for (const [cmd, desc] of Object.entries(item.commandDesc)) {
+          txt += `  ❯ \`${config.prefix}${cmd}\`\n`
+          txt += `    ╰ _${desc}_\n`
+        }
+      } else {
+        // Render semua alias dengan deskripsi yang sama
+        const cmds = item.commands?.length ? item.commands : [item.name]
+        for (const cmd of cmds) {
+          txt += `  ❯ \`${config.prefix}${cmd}\`\n`
+          txt += `    ╰ _${item.description}_\n`
+        }
+      }
     }
     txt += '\n'
   }
