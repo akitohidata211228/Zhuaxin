@@ -1,6 +1,4 @@
-// ═══════════════════════════════════════════════
-//  plugins/tagall.js — Tag All Group Members
-// ═══════════════════════════════════════════════
+
 
 const handler = async (ctx) => {
   const { sock, jid, msg, text, reply, isGroup } = ctx
