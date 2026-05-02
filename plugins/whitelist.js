@@ -1,14 +1,4 @@
-// ═══════════════════════════════════════════════
-//  plugins/whitelist.js — Manajemen Whitelist
-//  Owner only
-//
-//  wl list              → lihat daftar
-//  wl add <nomor/reply> → tambah user
-//  wl del <nomor/reply> → hapus user
-//  wl on                → aktifkan whitelist (hanya whitelist yg bisa pakai bot)
-//  wl off               → nonaktifkan whitelist (semua orang bisa pakai)
-//  wl status            → lihat mode sekarang
-// ═══════════════════════════════════════════════
+
 
 import {
   getWhitelist,
