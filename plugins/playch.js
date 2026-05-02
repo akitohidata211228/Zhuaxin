@@ -1,5 +1,3 @@
-// plugins/playch.js — YouTube Search & Kirim ke Channel (owner only)
-// Audio dikonversi ke ogg/opus agar support di channel WA
 
 import config from '../config.js'
 import { toOggOpus } from '../lib/audioHelper.js'
@@ -104,7 +102,7 @@ const handler = async (ctx) => {
       return reply(`❌ *Konversi audio gagal*\n\n> ${e.message}\n_Pastikan ffmpeg terinstall di server_`)
     }
 
-    // Kirim audio ogg/opus ke channel (PTT agar support di semua WA)
+    
     try {
       await sock.sendMessage(config.channelId, {
         audio: oggBuf,
