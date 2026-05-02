@@ -104,16 +104,7 @@ const handler = async (ctx) => {
       return reply(`❌ *Konversi audio gagal*\n\n> ${e.message}\n_Pastikan ffmpeg terinstall di server_`)
     }
 
-    // 4. Kirim teks info ke channel dulu
-    const caption =
-      `🎵 *${dl.title}*\n` +
-      `👤 ${picked.author}  •  ⏱️ ${dl.duration}`
-
-    try {
-      await sock.sendMessage(config.channelId, { text: caption })
-    } catch { /* skip kalau teks gagal, lanjut audio */ }
-
-    // 5. Kirim audio ogg/opus ke channel (PTT agar support di semua WA)
+    // Kirim audio ogg/opus ke channel (PTT agar support di semua WA)
     try {
       await sock.sendMessage(config.channelId, {
         audio: oggBuf,
