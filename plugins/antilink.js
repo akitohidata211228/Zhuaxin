@@ -30,8 +30,7 @@ const handler = async (ctx) => {
       // Cek apakah sender adalah nomor bot sendiri
       const senderIsBot = botNumber && senderNumber === botNumber
 
-      // Cek apakah sender adalah admin grup
-      // Sender bisa @s.whatsapp.net ATAU @lid — cek keduanya
+      
       const senderRawId = sender.split('@')[0]
       const senderParticipant = metaCheck.participants.find((p) => {
         const pid = p.id || ''
@@ -80,10 +79,7 @@ const handler = async (ctx) => {
 
   // ─── antilink on / on kick / on delete ──────────
   if (param === 'on' || param === 'on kick' || param === 'on delete') {
-    // Tidak cek bot admin di plugin.
-    // Baileys MD menampilkan participant sebagai @lid (LID internal WA)
-    // yang tidak bisa dicocokkan reliably dengan sock.user.id.
-    // Kalau bot bukan admin, middleware akan gagal hapus pesan dari WA.
+    
 
     const action = param.includes('kick') ? 'kick' : 'delete'
     antilinkEnable(jid, action)
