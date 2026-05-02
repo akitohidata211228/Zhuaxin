@@ -1,6 +1,4 @@
-// ═══════════════════════════════════════════════
-//  plugins/owner.js — Owner-Only Commands
-// ═══════════════════════════════════════════════
+
 import config from '../config.js'
 import { restartBot } from '../lib/connection.js'
 
