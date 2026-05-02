@@ -1,6 +1,4 @@
-// ═══════════════════════════════════════════════
-//  plugins/info.js — Bot Info Command
-// ═══════════════════════════════════════════════
+
 
 import os from 'os'
 import { formatDuration } from '../lib/utils.js'
