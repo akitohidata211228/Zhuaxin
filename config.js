@@ -1,9 +1,8 @@
-// config.js — Bot Configuration
-// Edit sesuai kebutuhan sebelum deploy
+
 
 const config = {
   usePrefix: false,
-  prefix: '',
+  prefix: '', 
 
   ownerNumber: [''],
   ownerLid: [''],
