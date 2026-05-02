@@ -3,7 +3,7 @@
 
 const config = {
   usePrefix: false,
-  prefix: '.',
+  prefix: '',
 
   ownerNumber: [''],
   ownerLid: [''],
