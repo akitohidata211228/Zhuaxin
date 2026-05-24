@@ -3,8 +3,16 @@
 //  Command: crucio (ganti nama kick)
 // ═══════════════════════════════════════════════
 
+// Helper: ambil nomor bersih dari JID (strip device suffix :XX)
+// "628123:5@s.whatsapp.net" → "628123"
+// "628123@s.whatsapp.net"   → "628123"
+// "628123@lid"              → "628123"
+function jidToNumber(jid) {
+  return (jid || '').split('@')[0].split(':')[0].replace(/[^0-9]/g, '')
+}
+
 const handler = async (ctx) => {
-  const { sock, jid, msg, args, reply, isGroup, isOwner } = ctx
+  const { sock, jid, msg, args, reply, isGroup, isOwner, sender } = ctx
 
   // Hanya bisa di grup
   if (!isGroup) {
@@ -12,44 +20,40 @@ const handler = async (ctx) => {
     return
   }
 
-  // Hanya owner atau admin yang boleh
+  // Ambil metadata sekali, pakai untuk semua cek
+  let groupMeta
+  try {
+    groupMeta = await sock.groupMetadata(jid)
+  } catch (err) {
+    await reply(`❌ Gagal ambil info grup: ${err.message}`)
+    return
+  }
+
+  // Hanya owner atau admin grup yang boleh
   if (!isOwner) {
-    // Cek apakah sender adalah admin grup
-    try {
-      const groupMeta = await sock.groupMetadata(jid)
-      const sender = msg.key.participant || msg.key.remoteJid
-      const senderClean = sender.replace(/[^0-9]/g, '')
-      const isAdmin = groupMeta.participants.some(
-        (p) => p.id.replace(/[^0-9]/g, '') === senderClean && (p.admin === 'admin' || p.admin === 'superadmin')
-      )
-      if (!isAdmin) {
-        await reply('❌ Command ini hanya untuk owner bot atau admin grup!')
-        return
-      }
-    } catch {
-      await reply('❌ Gagal mengecek status admin.')
+    const senderNumber = jidToNumber(sender)
+    const isAdmin = groupMeta.participants.some(
+      (p) => jidToNumber(p.id) === senderNumber &&
+             (p.admin === 'admin' || p.admin === 'superadmin')
+    )
+    if (!isAdmin) {
+      await reply('❌ Command ini hanya untuk owner bot atau admin grup!')
       return
     }
   }
 
   // Cek apakah bot adalah admin di grup
-  try {
-    const groupMeta = await sock.groupMetadata(jid)
-    const botId = sock.user?.id || ''
-    const botNumber = botId.split(':')[0].split('@')[0].replace(/[^0-9]/g, '')
-    const botIsAdmin = groupMeta.participants.some(
-      (p) => p.id.replace(/[^0-9]/g, '') === botNumber && (p.admin === 'admin' || p.admin === 'superadmin')
-    )
-    if (!botIsAdmin) {
-      await reply('❌ Bot bukan admin grup! Jadikan bot admin terlebih dahulu.')
-      return
-    }
-  } catch (err) {
-    await reply(`❌ Gagal cek status bot: ${err.message}`)
+  const botNumber  = jidToNumber(sock.user?.id || '')
+  const botIsAdmin = groupMeta.participants.some(
+    (p) => jidToNumber(p.id) === botNumber &&
+           (p.admin === 'admin' || p.admin === 'superadmin')
+  )
+  if (!botIsAdmin) {
+    await reply('❌ Bot bukan admin grup! Jadikan bot admin terlebih dahulu.')
     return
   }
 
-  // Tentukan target: dari mention atau reply
+  // Tentukan target: dari reply, mention, atau nomor manual
   let targetJid = null
 
   // Cara 1: reply ke pesan seseorang
@@ -83,10 +87,7 @@ const handler = async (ctx) => {
   }
 
   // Jangan kick diri sendiri (bot)
-  const botId = sock.user?.id || ''
-  const botNumber = botId.split(':')[0].split('@')[0].replace(/[^0-9]/g, '')
-  const targetNumber = targetJid.replace(/[^0-9]/g, '')
-  if (targetNumber === botNumber) {
+  if (jidToNumber(targetJid) === botNumber) {
     await reply('❌ Tidak bisa kick bot sendiri!')
     return
   }
@@ -104,9 +105,9 @@ const handler = async (ctx) => {
   }
 }
 
-handler.pluginName = 'crucio'
+handler.pluginName  = 'crucio'
 handler.description = 'Kick member dari grup (reply/mention/nomor)'
-handler.command = ['crucio']
-handler.category = ['group']
+handler.command     = ['crucio']
+handler.category    = ['group']
 
 export default handler
